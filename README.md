@@ -2,11 +2,10 @@ DBNotesEng
 ==========
 
 DBNotesEng = DBNotes app as a Rails Engine
-Link to DBNotes app - https://github.com/theAcadian/DBNotes
-Demo link of DBNotes app - http://screencast.com/t/UXaEGpEBduO
 
-How to use DBNotesEng gem
-=========================
+Link to DBNotes app - https://github.com/theAcadian/DBNotes
+
+Demo link of DBNotes app - http://screencast.com/t/UXaEGpEBduO
 
 WHAT THIS ENGINE CREATES
 ------------------------
