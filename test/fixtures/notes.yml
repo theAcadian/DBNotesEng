@@ -1,0 +1,13 @@
+# Read about fixtures at http://api.rubyonrails.org/classes/ActiveRecord/Fixtures.html
+
+one:
+  author: MyString
+  column_name: MyString
+  note_text: MyText
+  table_name: MyString
+
+two:
+  author: MyString
+  column_name: MyString
+  note_text: MyText
+  table_name: MyString

@@ -1,0 +1,418 @@
+ <script src="/assets/db_notes_eng/bootstrap.js" type="text/javascript"></script>
+ <link href="/assets/db_notes_eng/bootstrap.css" media="all" rel="stylesheet" type="text/css">
+
+<style type="text/css">
+	/* This has been added below becuase the Search icon was not showing up */
+	.glyph {
+		background-image: url(/assets/db_notes_eng/glyphicons-halflings.png);
+	}
+	.glyphw {
+		background-image: url(/assets/db_notes_eng/glyphicons-halflings-white.png);
+	}
+</style>
+
+<div class="row">&nbsp;</div>
+<div class="container">
+	
+	<div class="row">
+		<div class="span3">
+			<span class="label label-info">Informal Database Documentation - </span>  <span class="label label-warning">NOTEs and COMMENTs</span> <span class="badge badge-important">to share info about the Database</span>
+		</div>
+		<div class="span6">
+				<small>Type <b>Table-name</b> or <b>Column name : </b></small> 
+		  		
+		  		<input id="search" type="text" class="input-xlarge search-query" autocomplete="off" >
+
+		  		<button class="btn btn-primary" onclick="search2();"><i class="icon-search glyphw"></i> Search</button>
+		</div>
+
+		<div class="span3 text-right">	
+			 <img width="28" height="28" alt="" src="http://l.yimg.com/dh/ap/social/profile/profile_b32.png"> <span id="user_full_name" class="text-warning"> Anonymous User </span>
+		</div>
+
+	</div>
+	<div class="row">&nbsp;</div>
+	<div class="row" >
+		
+		<div class="span3 accordion" id="accordion1">
+			<% @models.each do |m| %>
+				<% if !['Note', 'Comment'].include? m.to_s %> <!--  Exclude "Note", "Comment" tables since they are specific to DBNotes tool-->
+				<div class="accordion-group">
+					<div class="accordion-heading">
+						<a class="text-info" href="#collapse<%= m%>" class="accordion-toggle" data-toggle="collapse" data-parent="accordion1">&nbsp;<%= m %>&nbsp;<span class="caret" style="vertical-align: baseline"></span><span class="badge badge-warning pull-right" style="margin-right:15px" id="<%= m %>_note_count">0</span></a>
+					</div>
+					<div id="collapse<%= m%>" class="accordion-body collapse">
+						<div class="accordion-inner">
+							<ul>
+							<%	m.column_names.each do |c| %>  
+								<% unless ['id', 'created_at', 'updated_at'].include? c %>
+									<li><a id="<%= m %>_<%= c %>_link" class="text-success" href="#" onclick="update_breadcrumbs('<%= m %>', '<%= c %>');show_notes_for('<%= m %>', '<%= c %>');add_selected_icon(this);"><%= c %></a> <span class="badge badge-info pull-right" id="<%= m %>_<%= c %>_note_count">0</span></li>
+								<% end %>
+							<% end %>
+							</ul>
+						</div>
+					</div>
+				</div>
+				<% end %>
+			<% end %>
+		</div>
+		<div class="span9" >
+			
+			<div class="row" style="padding-left:5px">
+				<ul class="breadcrumb" style="font-weight:bold; background-color:lightgoldenrodyellow">
+				  <li><%= link_to "HOME", '/DBNotes' %></li>
+				  <li id="table_name"> </li>
+				  <li id="column_name" class="active"></li>
+				</ul>
+			</div>
+			
+			<div class="row" id="middle_column" style="padding-left:5px">
+				
+			</div>
+			
+			<div class="row" id="AddNote" class="span9">
+				<span class="label label-info "> Add New Note </span>
+				<textarea name="newnote" id="newnote" rows="10" class="span9">(HTMLEditor goes here . For now it is a textarea.)</textarea><br>
+				<button class="btn btn-primary" type="button" onclick="javascript:addNote();">Add Note</button>
+			</div>
+
+
+		</div>
+
+	</div>
+	<div class="row text-center">
+		<br><br> <hr><h4>Footer goes here </h4><hr>
+	</div>
+</div>
+
+
+<script type="text/javascript">
+
+	function add_selected_icon(selected_link) {
+		$('.icon-ok').remove();	// Remove icon from previously selected link
+		$(selected_link).append('<i class="icon-ok glyph"></i>'); // Add icon to currently selected link
+	}
+
+	function update_breadcrumbs(model_name, column_name) {
+		jQuery('.breadcrumb').show();
+		jQuery('#table_name').html('<span class="divider">></span>' + model_name);
+		jQuery('#column_name').html('<span class="divider">></span>' + column_name);
+	}
+
+	function show_notes_for(model_name, column_name) {
+		// 1. Place Ajax call 
+		// 2. Callback will populate #middle_column
+
+		jQuery.getJSON("/tables/" + model_name + "/columns/" + column_name + ".json", show_notes_for_CB);
+
+
+		function show_notes_for_CB (response) {
+			if (response.length == 0)  {				// if no Notes are present in DB, show message and return
+				jQuery('#middle_column').html('<h3 class="text-center"> No NOTES present for selected Column</h3><br>');
+				return;
+			}
+
+			
+			jQuery('#middle_column').html('');	// empty out the Div (i.e. initialize to empty)
+			jQuery(response).each(function(i, ele) {
+				var html = "&nbsp;";
+				html = html + '<span class="label label-inverse "> &nbsp;&nbsp;' + (i+1) + '&nbsp;&nbsp; </span>';
+				html = html + '<span class="label label-inverse pull-right"> ' +  ele.author + ' , &nbsp;' + ele.updated_at  +' </span>';
+				html = html + '<div class="well">';
+				
+				html = html + 		'<p>' + ele.note_text + '</p>' ; // Use <p> element to show Note's text
+				//html = html +		'<p class="text-right"><small> - ' + ele.author + ' , &nbsp;' + ele.updated_at  + '</small></p>'; // Use <p> element to show Note's author and date
+							
+				// If Note has Comments, create <p> element for each Comment, and append them
+				if (ele.comments.length != 0) {
+					jQuery(ele.comments).each( function(i, c_ele) {
+						html = html + '<hr>' ; 
+						html = html + '<p style="font-size:x-small">' + c_ele.comment_text + ' &nbsp;&nbsp;- ' + c_ele.author +', &nbsp;' + c_ele.updated_at + '</p>';
+					});
+				}
+
+				html = html + 			'<hr><a href="#" onclick="show_AddCommentDiv('+ ele.id + ');return false;"><small>Add Comment</small></a>'; // for "Add Comment" link
+				html = html + 			'<div id="newcommentdiv' + ele.id +'" style="display:none">' ; // Add a Div that contains TextArea & Button to add a new comment
+				html = html + 				'<textarea rows="5" class="span8"></textarea>'; 
+				html = html + 				'<br>';
+				html = html + 				'<button onclick="addComment(' + ele.id + ')" class="btn btn-primary">Add Comment</button>&nbsp; &nbsp; ';
+				html = html + 				'<button onclick="hide_addCommentDiv(' + ele.id + ');" class="btn btn-danger">Cancel</button>' ;
+				html = html + 			'</div>' ; 
+				html = html + '</div>';
+				jQuery('#middle_column').append(html);
+			});
+
+			
+			UI();
+			
+		}
+
+	}
+
+	function UI() {
+		// Give some color to Notes & Comments & "Add Comment" link
+			jQuery('.well').each(function(i, ele) {
+				if (i%2 == 0) {
+					$(ele).addClass("badge-important");
+					$(ele).css("color","whitesmoke");
+					$(ele).find('a:contains("Add Comment")').css("color","orange").css("font-weight", "bold");
+				}
+				else {
+					$(ele).addClass("badge-warning");
+					$(ele).find('a:contains("Add Comment")').css("color","navyblue").css("font-weight", "bold");
+				}
+			});
+	}
+
+	
+	function addNote() {
+
+		var user_logged_in = get_login_status();
+
+		if (!user_logged_in) {
+			show_login_dialog();
+			return ;
+		}
+
+
+		var table_name = $('li#table_name').text().substr(1) ;	// Get TableName (strip off the last character which is > )
+		var column_name = $('li#column_name').text().substr(1) ;
+		//var author = 'Sai Ponduru';
+		author = get_author_name();
+		var note_text = $('#newnote').val();
+		jQuery.getJSON('/add_note?table_name=' + table_name + '&column_name=' + column_name + '&author=' + author + '&note_text=' + note_text, addNote_CB);
+
+		function addNote_CB (response) {
+			if (response == "not logged in") {
+				show_login_dialog();
+				return ;
+			}
+
+			var ele = response;
+			//var ele = {"author":"Sai Ponduru","column_name":"note_id","created_at":"2013-04-11T04:55:40Z","id":37,"note_text":"s","table_name":"Comment","updated_at":"2013-04-11T04:55:40Z"};
+			$('#newnote').val('');
+			$('#' + ele.table_name + "_" + ele.column_name + "_link").click();
+			update_note_count();
+		}
+	}
+
+
+	function show_AddCommentDiv( note_id) {
+		
+		//$(link_element).parent().append('<div id="newcomment_div><textarea id="newcomment">This is a new comment</textarea><br><button onclick="addComment(' + link_element + ',' + note_id + ')">Add Comment</button></div>');
+		jQuery('#newcommentdiv' + note_id).show();
+
+	}
+
+	function hide_addCommentDiv(note_id){
+		jQuery('#newcommentdiv' + note_id).hide();		
+	}
+
+
+	function addComment( note_id) {
+
+		var user_logged_in = get_login_status();
+
+		if (!user_logged_in) {
+			show_login_dialog();
+			return ;
+		}
+
+		author = get_author_name();
+
+		//var author = 'Sai Ponduru';
+		var comment_text = $('#newcommentdiv' + note_id + '> textarea').val();
+		jQuery.getJSON('/add_comment?author=' + author + '&note_id=' + note_id + '&comment_text=' + comment_text, addComment_CB);
+
+		function addComment_CB  (response) {
+			if (response == "not logged in") {
+				show_login_dialog();
+				return ;
+			}
+
+			// response contains json data of newly added comment - we are using data received from the server (instead of taking it from the textarea element) in order to make sure that the comment got saved on the server side ;
+			var ele = response;
+			
+			// construct html for the new comment to be appended 
+			var html = "";	
+			html = html + '<p style="font-size:x-small">' + ele.comment_text + ' &nbsp;&nbsp;- ' + ele.author +', &nbsp;' + ele.updated_at + '</p>';
+			html = html + '<hr>' ;
+			
+			// append the above constructed html 
+			var last_comments_hr = $('#newcommentdiv' + note_id).parent().find('hr').last();	// find last comment's hr
+			$(html).insertAfter(last_comments_hr);	// insert new comment after the last comment's hr 
+			$('#newcommentdiv' + note_id).hide();	// hide textarea & button to add new comment
+			$('#newcommentdiv' + note_id + '>textarea').val('');	//clear textarea's contents
+
+			UI();
+			update_note_count();
+		}
+
+	}
+
+	function get_login_status() {
+		var user_logged_in = false;
+		//jQuery.getJSON('/is_user_logged_in', function(response){ user_logged_in = response; alert(response);});
+		$.ajax({
+			url: '/is_user_logged_in', 
+			dataType: 'json',
+			async: false,
+			success: function(response){ user_logged_in = response; }
+		});
+		return user_logged_in;
+	}
+
+	function get_author_name() {
+		author = "Anonymous User";
+		//if (get_login_status()) {
+			//jQuery.getJSON('/get_author_name', function(response){ author = response.replace(/"/g,''); });
+			$.ajax({
+				url: '/get_author_name',
+				dataType: 'json',
+				async: false,
+				success:  function(response){ author = response.replace(/"/g,''); }
+			});
+		//}
+		return author;
+	}
+
+
+	
+</script>
+
+<script type="text/javascript">
+	if (<%= @table_name.blank? %>) {
+		// Click on the 1st Table's 1st column in Accordion control
+		$('.accordion a')[0].click();
+		$('.accordion-inner a')[0].click();
+	}
+</script>
+
+<script type="text/javascript">
+	var arr = [];
+	<% @models.each do |m| %>
+		<% unless ['Note', 'Comment'].include? m.to_s %> 
+			<%	m.column_names.each do |c| %> 
+				<% unless ['id', 'created_at', 'updated_at'].include? c %>
+					arr.push ('<%= (m.to_s + ":" + c.to_s) %>');
+				<% end %>
+			<% end %>
+		<%end%>
+	<% end %>
+	$('#search').typeahead({source: arr});
+
+	function search2() {
+		reset_accordion();
+		setTimeout("",2000);
+
+		var table_name =  $('#search').val().split(":")[0] ;
+		var column_name = $('#search').val().split(":")[1] ;
+
+		var table_name_link = $(".accordion a:contains(" + table_name + ")"); // Find the <a> tag that contains the 'table name' as its text
+		table_name_link.click();
+
+		// To find the column-name, below search is happening within the current Table (because the same column name could be in 2 tables)
+		// The <a> tag for a column-name can be found by going to the next div of tablename's link's parent-div 
+
+		var column_name_link = table_name_link.parent().next().find("a:contains(" + column_name + ")");  
+		column_name_link.click();
+	}
+</script>
+
+
+<div id="myModal" class="modal hide fade" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+  <div class="modal-header">
+    <button type="button" class="close" data-dismiss="modal" aria-hidden="true">×</button>
+    <h3 id="myModalLabel">Login using JIRA credentials</h3>
+  </div>
+  <div class="modal-body">
+  	
+    <label for="username"> Username: </label><input type="text" id="username" name="username"/><br>
+	<label for="password"> Password: </label><input type="password" id="password" name="password"/><br>
+	<div class="pull-left">
+	    <button class="btn btn-primary" onclick="javascript:authenticate_with_Jira();">Login</button>
+	    <button class="btn" data-dismiss="modal" aria-hidden="true">Close</button>
+    </div>
+  </div>
+  
+  <div class="modal-footer">
+  	<p id="login_feedback" class="text-center" style="font-size:1.4em">To add a Note / Comment, you have to login.</p>
+  </div>
+</div>
+
+<script type="text/javascript">
+	
+	function show_login_dialog() {
+		$('#myModal').modal('show');
+	}
+
+	function authenticate_with_Jira() {
+
+		// send ajax request to ModelInfo#jira
+		// if unsuccessful, update #login_feedback to say - "Tried authenticating with - https://jira2.icentris.com/jira/rest/api/2/user?username=" + username ....Login unsuccessful.. "
+		var username = $('#username').val();
+		var password = $('#password').val();
+		$.getJSON('/user_authenticate?username=' + username + '&password=' + password, authenticate_with_Jira_CB );
+		$('#login_feedback').html("<p class='text-info'>Authentication in progress ...</p>");
+
+		function authenticate_with_Jira_CB(response) {
+			
+			if (response.indexOf("Authentication Failed") >= 0)
+				$('#login_feedback').html("<p class='text-warning'>"  + response + " </p><b> Please try again.</b>");
+			else  {
+				 $('#login_feedback').html("<p class='text-success'> Login Successful!. </p> <p class='text-warning'> Click 'Add Note/Comment' again </p>");
+				 setTimeout("$('#username').val(''); $('#password').val(''); $('#myModal').modal('hide');", 3000);
+				 author = get_author_name();
+				 $('#user_full_name').html(author);
+			}
+
+		}
+
+	}
+	
+</script>
+
+
+<script type="text/javascript">
+
+	function update_note_count() {
+		
+		$.getJSON('/get_table_notes_count', function(response){
+			/* Example JSON response from server :
+			[{"note_count":2,"table_name":null},{"note_count":46,"table_name":"Comment"},{"note_count":4,"table_name":"Note"},{"note_count":21,"table_name":"Table1"},{"note_count":2,"table_name":"Table2"}]
+			*/
+			$(response).each(function() {
+				var table_name = this.table_name;
+				var note_count = this.note_count;
+				$('#' + table_name + '_note_count').html(note_count);
+			});
+		});
+
+		//$.getJSON('/get_table_notes_count', function(response){
+		$.getJSON('/get_column_notes_count', function(response){
+			/* Example JSON response from server :
+			[{"column_name":null,"note_count":2,"table_name":null},{"column_name":"author","note_count":11,"table_name":"Comment"},{"column_name":"comment_text","note_count":5,"table_name":"Comment"},{"column_name":"note_id","note_count":30,"table_name":"Comment"},{"column_name":"author","note_count":2,"table_name":"Note"},{"column_name":"table_name","note_count":2,"table_name":"Note"},{"column_name":"col1","note_count":15,"table_name":"Table1"},{"column_name":"col2","note_count":2,"table_name":"Table1"},{"column_name":"col3","note_count":2,"table_name":"Table1"},{"column_name":"col4","note_count":2,"table_name":"Table1"},{"column_name":"col1","note_count":2,"table_name":"Table2"}]
+			*/
+			$(response).each(function() {
+				var table_name = this.table_name;
+				var column_name = this.column_name;
+				var note_count = this.note_count;
+				$('#' + table_name + '_' + column_name + '_note_count').html(note_count);
+			});
+		});
+
+	}
+
+	update_note_count();
+
+
+</script>
+
+<script type="text/javascript">
+	function reset_accordion() {
+		// collapse all 'tables' that are expanded
+		$('div[class*=collapse][class*=in][class*=accordion-body]').parent().find('div.accordion-heading a').click();
+	}
+</script>
+
+
